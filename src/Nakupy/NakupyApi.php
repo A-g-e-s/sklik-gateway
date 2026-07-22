@@ -10,6 +10,7 @@ use Ages\SklikGateway\Nakupy\Request\ReportParams;
 use Ages\SklikGateway\Nakupy\Request\ShopItemsQuery;
 use Ages\SklikGateway\Nakupy\Response\Campaign;
 use Ages\SklikGateway\Nakupy\Response\Feed;
+use Ages\SklikGateway\Nakupy\Response\Product;
 use Ages\SklikGateway\Nakupy\Response\ReportCreated;
 use Ages\SklikGateway\Nakupy\Response\Shop;
 use Ages\SklikGateway\Nakupy\Response\ShopItemList;
@@ -80,6 +81,42 @@ class NakupyApi
 
         $payload = ['items' => array_map(static fn (ItemChange $c): array => $c->toArray(), $changes)];
         $this->client->patch('nakupy/shop-items/', $payload, ['premiseId' => $premiseId]);
+    }
+
+    // -- Products -----------------------------------------------------------
+
+    /**
+     * Retrieve product details (GET /nakupy/products/). Up to 10 product IDs per call.
+     *
+     * @param list<int> $productIds Seznam Nákupy product IDs (max 10).
+     * @return list<Product>
+     */
+    public function getProducts(array $productIds, int $premiseId): array
+    {
+        if ($productIds === []) {
+            throw new \InvalidArgumentException('At least one product ID is required.');
+        }
+        if (count($productIds) > 10) {
+            throw new \InvalidArgumentException('At most 10 product IDs per request are allowed.');
+        }
+
+        $data = $this->client->get('nakupy/products/', [
+            'productId' => $productIds,
+            'premiseId' => $premiseId,
+        ]);
+
+        return array_map(
+            static fn (array $item): Product => Product::fromArray($item),
+            $this->items($data),
+        );
+    }
+
+    /**
+     * Convenience wrapper for a single product (GET /nakupy/products/).
+     */
+    public function getProduct(int $productId, int $premiseId): ?Product
+    {
+        return $this->getProducts([$productId], $premiseId)[0] ?? null;
     }
 
     // -- Catalog ------------------------------------------------------------

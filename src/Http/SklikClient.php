@@ -213,25 +213,37 @@ class SklikClient
     }
 
     /**
-     * Drops nulls and normalizes booleans/arrays for query strings.
+     * Builds a query string, dropping nulls and normalizing booleans. Array
+     * values are serialized as repeated keys (`id=1&id=2`) as expected by the
+     * Fénix API — not the PHP-style `id[]=1` that Guzzle would produce by default.
      *
      * @param array<string, mixed> $query
-     * @return array<string, mixed>
      */
-    private function normalizeQuery(array $query): array
+    private function normalizeQuery(array $query): string
     {
-        $out = [];
+        $parts = [];
         foreach ($query as $key => $value) {
             if ($value === null) {
                 continue;
             }
-            if (is_bool($value)) {
-                $out[$key] = $value ? 'true' : 'false';
+            if (is_array($value)) {
+                foreach ($value as $item) {
+                    $parts[] = rawurlencode($key) . '=' . rawurlencode($this->scalarToString($item));
+                }
                 continue;
             }
-            $out[$key] = $value;
+            $parts[] = rawurlencode($key) . '=' . rawurlencode($this->scalarToString($value));
         }
 
-        return $out;
+        return implode('&', $parts);
+    }
+
+    private function scalarToString(mixed $value): string
+    {
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        return is_scalar($value) ? (string) $value : '';
     }
 }

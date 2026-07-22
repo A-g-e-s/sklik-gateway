@@ -65,6 +65,22 @@ $gateway->nakupy()->updateShopItems($premiseId, [
 ]);
 ```
 
+### Detail produktu
+
+```php
+// jeden produkt
+$product = $gateway->nakupy()->getProduct($productId, $premiseId);
+echo $product?->productName, ' ', $product?->minPrice, '–', $product?->maxPrice;
+
+// dávka (max 10 productId najednou)
+$products = $gateway->nakupy()->getProducts([232, 233, 234], $premiseId);
+```
+
+> **premiseId** = ID provozovny (obchodu) v Seznam Nákupy – najdeš ho v rozhraní
+> Sklik.cz, API pro jeho výpis neexistuje. **productId** je ID produktu v katalogu
+> Zboží.cz/Seznam – získáš ho z URL produktu, z `manufacturers/search` nebo
+> z napárovaných shop-items.
+
 ### Další čtecí endpointy
 
 ```php
