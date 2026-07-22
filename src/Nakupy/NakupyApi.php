@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ages\SklikGateway\Nakupy;
 
+use Ages\SklikGateway\Exception\SklikException;
 use Ages\SklikGateway\Http\SklikClient;
 use Ages\SklikGateway\Nakupy\Request\ItemChange;
 use Ages\SklikGateway\Nakupy\Request\ReportParams;
@@ -18,38 +19,43 @@ use Ages\SklikGateway\Nakupy\Response\ShopItemList;
 /**
  * Seznam Nákupy endpoints (/nakupy/*).
  *
+ * Every call needs a premise (shop) ID. It can be passed explicitly, otherwise
+ * the default from {@see \Ages\SklikGateway\Config\SklikConfig::$premiseId} is used.
+ *
  * Statistics reports are generated asynchronously: the create* methods return a
  * report id; the actual data is downloaded through {@see \Ages\SklikGateway\Report\ReportApi}.
  */
 class NakupyApi
 {
-    public function __construct(private readonly SklikClient $client)
-    {
+    public function __construct(
+        private readonly SklikClient $client,
+        private readonly ?int $defaultPremiseId = null,
+    ) {
     }
 
     // -- Statistics ---------------------------------------------------------
 
     /** Aggregated shop statistics report (POST /nakupy/statistics/aggregated). */
-    public function createAggregatedReport(int $premiseId, ReportParams $params): ReportCreated
+    public function createAggregatedReport(ReportParams $params, ?int $premiseId = null): ReportCreated
     {
-        return $this->createReport('nakupy/statistics/aggregated', $premiseId, $params);
+        return $this->createReport('nakupy/statistics/aggregated', $params, $premiseId);
     }
 
     /** Per-item statistics report (POST /nakupy/statistics/item). */
-    public function createItemReport(int $premiseId, ReportParams $params): ReportCreated
+    public function createItemReport(ReportParams $params, ?int $premiseId = null): ReportCreated
     {
-        return $this->createReport('nakupy/statistics/item', $premiseId, $params);
+        return $this->createReport('nakupy/statistics/item', $params, $premiseId);
     }
 
     /** Item statistics grouped by categories (POST /nakupy/statistics/category). */
-    public function createCategoryReport(int $premiseId, ReportParams $params): ReportCreated
+    public function createCategoryReport(ReportParams $params, ?int $premiseId = null): ReportCreated
     {
-        return $this->createReport('nakupy/statistics/category', $premiseId, $params);
+        return $this->createReport('nakupy/statistics/category', $params, $premiseId);
     }
 
-    private function createReport(string $path, int $premiseId, ReportParams $params): ReportCreated
+    private function createReport(string $path, ReportParams $params, ?int $premiseId): ReportCreated
     {
-        $data = $this->client->post($path, $params->toArray(), ['premiseId' => $premiseId]);
+        $data = $this->client->post($path, $params->toArray(), ['premiseId' => $this->premiseId($premiseId)]);
 
         return ReportCreated::fromArray($data);
     }
@@ -57,9 +63,9 @@ class NakupyApi
     // -- Shop items ---------------------------------------------------------
 
     /** List shop item attributes (GET /nakupy/shop-items/). */
-    public function listShopItems(int $premiseId, ?ShopItemsQuery $query = null): ShopItemList
+    public function listShopItems(?ShopItemsQuery $query = null, ?int $premiseId = null): ShopItemList
     {
-        $params = ['premiseId' => $premiseId] + ($query?->toArray() ?? []);
+        $params = ['premiseId' => $this->premiseId($premiseId)] + ($query?->toArray() ?? []);
         $data = $this->client->get('nakupy/shop-items/', $params);
 
         return ShopItemList::fromArray($data);
@@ -70,7 +76,7 @@ class NakupyApi
      *
      * @param list<ItemChange> $changes
      */
-    public function updateShopItems(int $premiseId, array $changes): void
+    public function updateShopItems(array $changes, ?int $premiseId = null): void
     {
         if ($changes === []) {
             throw new \InvalidArgumentException('At least one item change is required.');
@@ -80,7 +86,7 @@ class NakupyApi
         }
 
         $payload = ['items' => array_map(static fn (ItemChange $c): array => $c->toArray(), $changes)];
-        $this->client->patch('nakupy/shop-items/', $payload, ['premiseId' => $premiseId]);
+        $this->client->patch('nakupy/shop-items/', $payload, ['premiseId' => $this->premiseId($premiseId)]);
     }
 
     // -- Products -----------------------------------------------------------
@@ -91,7 +97,7 @@ class NakupyApi
      * @param list<int> $productIds Seznam Nákupy product IDs (max 10).
      * @return list<Product>
      */
-    public function getProducts(array $productIds, int $premiseId): array
+    public function getProducts(array $productIds, ?int $premiseId = null): array
     {
         if ($productIds === []) {
             throw new \InvalidArgumentException('At least one product ID is required.');
@@ -102,7 +108,7 @@ class NakupyApi
 
         $data = $this->client->get('nakupy/products/', [
             'productId' => $productIds,
-            'premiseId' => $premiseId,
+            'premiseId' => $this->premiseId($premiseId),
         ]);
 
         return array_map(
@@ -114,7 +120,7 @@ class NakupyApi
     /**
      * Convenience wrapper for a single product (GET /nakupy/products/).
      */
-    public function getProduct(int $productId, int $premiseId): ?Product
+    public function getProduct(int $productId, ?int $premiseId = null): ?Product
     {
         return $this->getProducts([$productId], $premiseId)[0] ?? null;
     }
@@ -126,9 +132,9 @@ class NakupyApi
      *
      * @return list<Feed>
      */
-    public function listFeeds(int $premiseId): array
+    public function listFeeds(?int $premiseId = null): array
     {
-        $data = $this->client->get('nakupy/feeds/', ['premiseId' => $premiseId]);
+        $data = $this->client->get('nakupy/feeds/', ['premiseId' => $this->premiseId($premiseId)]);
 
         return array_map(
             static fn (array $item): Feed => Feed::fromArray($item),
@@ -141,9 +147,9 @@ class NakupyApi
      *
      * @return list<Campaign>
      */
-    public function listCampaigns(int $premiseId): array
+    public function listCampaigns(?int $premiseId = null): array
     {
-        $data = $this->client->get('nakupy/campaigns/', ['premiseId' => $premiseId]);
+        $data = $this->client->get('nakupy/campaigns/', ['premiseId' => $this->premiseId($premiseId)]);
 
         return array_map(
             static fn (array $item): Campaign => Campaign::fromArray($item),
@@ -156,14 +162,30 @@ class NakupyApi
      *
      * @return list<Shop>
      */
-    public function listShops(int $id, int $premiseId): array
+    public function listShops(int $id, ?int $premiseId = null): array
     {
-        $data = $this->client->get('nakupy/shops/', ['id' => $id, 'premiseId' => $premiseId]);
+        $data = $this->client->get('nakupy/shops/', ['id' => $id, 'premiseId' => $this->premiseId($premiseId)]);
 
         return array_map(
             static fn (array $item): Shop => Shop::fromArray($item),
             $this->items($data),
         );
+    }
+
+    /**
+     * Resolves the premise ID for a call: the explicit one wins, otherwise the
+     * configured default. Throws when neither is available.
+     */
+    private function premiseId(?int $premiseId): int
+    {
+        $resolved = $premiseId ?? $this->defaultPremiseId;
+        if ($resolved === null) {
+            throw new SklikException(
+                'No premise ID provided and no default configured in SklikConfig::$premiseId.',
+            );
+        }
+
+        return $resolved;
     }
 
     /**

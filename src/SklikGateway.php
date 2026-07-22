@@ -27,6 +27,8 @@ class SklikGateway
 {
     private readonly SklikClient $client;
 
+    private readonly ?int $premiseId;
+
     private ?NakupyApi $nakupy = null;
 
     private ?ReportApi $reports = null;
@@ -37,11 +39,12 @@ class SklikGateway
         ?Client $httpClient = null,
     ) {
         $this->client = new SklikClient($config, $cache, $httpClient);
+        $this->premiseId = $config->premiseId;
     }
 
     public function nakupy(): NakupyApi
     {
-        return $this->nakupy ??= new NakupyApi($this->client);
+        return $this->nakupy ??= new NakupyApi($this->client, $this->premiseId);
     }
 
     public function reports(): ReportApi

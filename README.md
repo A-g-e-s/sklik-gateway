@@ -40,7 +40,7 @@ $params = new ReportParams(
     format: [ReportFileFormat::Json],
     granularity: ReportStatisticsGranularity::Daily,
 );
-$created = $gateway->nakupy()->createAggregatedReport($premiseId, $params);
+$created = $gateway->nakupy()->createAggregatedReport($params);
 
 // 2) stažení obsahu reportu, až je vygenerovaný
 $report = $gateway->reports()->getReport($created->id);
@@ -54,13 +54,13 @@ foreach ($report->stats as $row) { /* ... */ }
 use Ages\SklikGateway\Nakupy\Request\ShopItemsQuery;
 use Ages\SklikGateway\Nakupy\Request\ItemChange;
 
-$list = $gateway->nakupy()->listShopItems($premiseId, new ShopItemsQuery(limit: 100));
+$list = $gateway->nakupy()->listShopItems(new ShopItemsQuery(limit: 100));
 foreach ($list->items as $item) {
     echo $item->matchingId, ' ', $item->price, PHP_EOL;
 }
 
 // úprava max. 50 položek najednou (ITEM_ID z feedu)
-$gateway->nakupy()->updateShopItems($premiseId, [
+$gateway->nakupy()->updateShopItems([
     new ItemChange(id: 'SKU-123', searchMaxCpc: 2.50, productMaxCpc: 3.00),
 ]);
 ```
@@ -69,24 +69,25 @@ $gateway->nakupy()->updateShopItems($premiseId, [
 
 ```php
 // jeden produkt
-$product = $gateway->nakupy()->getProduct($productId, $premiseId);
+$product = $gateway->nakupy()->getProduct($productId);
 echo $product?->productName, ' ', $product?->minPrice, '–', $product?->maxPrice;
 
 // dávka (max 10 productId najednou)
-$products = $gateway->nakupy()->getProducts([232, 233, 234], $premiseId);
+$products = $gateway->nakupy()->getProducts([232, 233, 234]);
 ```
 
-> **premiseId** = ID provozovny (obchodu) v Seznam Nákupy – najdeš ho v rozhraní
-> Sklik.cz, API pro jeho výpis neexistuje. **productId** je ID produktu v katalogu
-> Zboží.cz/Seznam – získáš ho z URL produktu, z `manufacturers/search` nebo
-> z napárovaných shop-items.
+> **premiseId** je výchozí z konfigurace (`SklikConfig::$premiseId`); u každé metody
+> ho lze přebít posledním argumentem (např. `getProduct($productId, $jinyPremiseId)`).
+> Najdeš ho v rozhraní Sklik.cz – API pro jeho výpis neexistuje. **productId** je ID
+> produktu v katalogu Zboží.cz/Seznam – z URL produktu, z `manufacturers/search`
+> nebo z napárovaných shop-items.
 
 ### Další čtecí endpointy
 
 ```php
-$gateway->nakupy()->listFeeds($premiseId);
-$gateway->nakupy()->listCampaigns($premiseId);
-$gateway->nakupy()->listShops($id, $premiseId);
+$gateway->nakupy()->listFeeds();
+$gateway->nakupy()->listCampaigns();
+$gateway->nakupy()->listShops($id);
 $gateway->reports()->listReports(limit: 20);
 ```
 
@@ -96,7 +97,8 @@ $gateway->reports()->listReports(limit: 20);
 services:
     sklikConfig: Ages\SklikGateway\Config\SklikConfig(
         refreshToken: 'váš-refresh-token'
-        # userId: 123456          # volitelně – přístup k propojenému účtu
+        premiseId: 123456           # výchozí provozovna pro /nakupy/* volání
+        # userId: 123456            # volitelně – přístup k propojenému účtu
     )
     - Ages\SklikGateway\SklikGateway(@sklikConfig)
 ```

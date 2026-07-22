@@ -22,6 +22,11 @@ readonly class SklikConfig
          * been granted access to it beforehand.
          */
         public ?int $userId = null,
+        /**
+         * Default Seznam Nákupy premise (shop) ID used by /nakupy/* calls when
+         * none is passed explicitly. Handy for single-shop projects.
+         */
+        public ?int $premiseId = null,
         /** Base API URL, without trailing slash. */
         public string $apiUrl = 'https://api.sklik.cz/v1',
         /** Request timeout in seconds. */
