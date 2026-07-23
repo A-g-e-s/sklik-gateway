@@ -74,6 +74,12 @@ echo $product?->productName, ' ', $product?->minPrice, '–', $product?->maxPric
 
 // dávka (max 10 productId najednou)
 $products = $gateway->nakupy()->getProducts([232, 233, 234]);
+
+// obchody, které produkt nabízejí (název + hodnocení), klíčované premiseId
+$shops = $gateway->nakupy()->getProductShops($product);
+foreach ($shops as $premiseId => $shop) {
+    echo $shop->name, ' ', $shop->rating, '%', PHP_EOL;
+}
 ```
 
 > **premiseId** je výchozí z konfigurace (`SklikConfig::$premiseId`); u každé metody
@@ -87,7 +93,7 @@ $products = $gateway->nakupy()->getProducts([232, 233, 234]);
 ```php
 $gateway->nakupy()->listFeeds();
 $gateway->nakupy()->listCampaigns();
-$gateway->nakupy()->listShops($id);
+$gateway->nakupy()->listShops([$shopId1, $shopId2]);   // až 100 shop ID
 $gateway->reports()->listReports(limit: 20);
 ```
 

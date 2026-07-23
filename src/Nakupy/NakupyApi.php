@@ -158,18 +158,60 @@ class NakupyApi
     }
 
     /**
-     * List shop details (GET /nakupy/shops/).
+     * List shop details (GET /nakupy/shops/). Up to 100 shop IDs per call.
      *
+     * @param list<int> $ids Shop (premise) IDs to look up.
      * @return list<Shop>
      */
-    public function listShops(int $id, ?int $premiseId = null): array
+    public function listShops(array $ids, ?int $premiseId = null): array
     {
-        $data = $this->client->get('nakupy/shops/', ['id' => $id, 'premiseId' => $this->premiseId($premiseId)]);
+        if ($ids === []) {
+            throw new \InvalidArgumentException('At least one shop ID is required.');
+        }
+        if (count($ids) > 100) {
+            throw new \InvalidArgumentException('At most 100 shop IDs per request are allowed.');
+        }
+
+        $data = $this->client->get('nakupy/shops/', [
+            'id' => $ids,
+            'premiseId' => $this->premiseId($premiseId),
+        ]);
 
         return array_map(
             static fn (array $item): Shop => Shop::fromArray($item),
             $this->items($data),
         );
+    }
+
+    /**
+     * Resolve the shops that offer a given product, keyed by premise (shop) ID.
+     *
+     * Combines the product's `shopItems` (which carry the offering shops' premise IDs)
+     * with a {@see listShops()} lookup to get the shop names/ratings.
+     *
+     * @return array<int, Shop>
+     */
+    public function getProductShops(Product $product, ?int $premiseId = null): array
+    {
+        $ids = [];
+        foreach ((array) ($product->raw['shopItems'] ?? []) as $item) {
+            if (is_array($item) && isset($item['premiseId'])) {
+                $id = (int) $item['premiseId'];
+                $ids[$id] = $id;
+            }
+        }
+        if ($ids === []) {
+            return [];
+        }
+
+        $shops = [];
+        foreach (array_chunk(array_values($ids), 100) as $chunk) {
+            foreach ($this->listShops($chunk, $premiseId) as $shop) {
+                $shops[$shop->premiseId] = $shop;
+            }
+        }
+
+        return $shops;
     }
 
     /**
