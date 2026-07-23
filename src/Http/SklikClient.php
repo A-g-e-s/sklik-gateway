@@ -24,6 +24,9 @@ class SklikClient
 
     private ?AccessToken $token = null;
 
+    /** Unix timestamp (float, seconds) of the last outgoing request. */
+    private float $lastRequestAt = 0.0;
+
     public function __construct(
         private readonly SklikConfig $config,
         /** Optional PSR-16 cache to keep the access token across requests. */
@@ -114,6 +117,7 @@ class SklikClient
         $attempt = 0;
 
         while (true) {
+            $this->throttle();
             try {
                 $response = $this->httpClient->request($method, $path, $options);
             } catch (GuzzleException $e) {
@@ -152,8 +156,30 @@ class SklikClient
         return $token->token;
     }
 
+    /**
+     * Proactively spaces requests to honour the configured min interval, keeping
+     * batch processing under the API's global rate limit without triggering 429s.
+     */
+    private function throttle(): void
+    {
+        $intervalUs = $this->config->minRequestIntervalMs * 1000;
+        if ($intervalUs <= 0) {
+            return;
+        }
+
+        if ($this->lastRequestAt > 0.0) {
+            $elapsedUs = (microtime(true) - $this->lastRequestAt) * 1_000_000;
+            if ($elapsedUs < $intervalUs) {
+                usleep((int) ($intervalUs - $elapsedUs));
+            }
+        }
+
+        $this->lastRequestAt = microtime(true);
+    }
+
     private function fetchToken(): AccessToken
     {
+        $this->throttle();
         $form = [
             'grant_type' => 'refresh_token',
             'refresh_token' => $this->config->refreshToken,

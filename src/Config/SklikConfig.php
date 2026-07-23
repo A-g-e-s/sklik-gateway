@@ -36,6 +36,12 @@ readonly class SklikConfig
          * honouring the Retry-After header. The global limit is 5 req/s.
          */
         public int $rateLimitRetries = 3,
+        /**
+         * Minimum spacing between two requests in milliseconds. Enforced proactively
+         * so batch processing stays under the 5 req/s global limit (200 ms = 5 req/s)
+         * instead of relying on reactive 429 retries. Set to 0 to disable.
+         */
+        public int $minRequestIntervalMs = 200,
     ) {
     }
 }
