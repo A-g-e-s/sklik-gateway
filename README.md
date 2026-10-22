@@ -48,6 +48,14 @@ echo $report->sums?->totalMoney;   // celková útrata
 foreach ($report->stats as $row) { /* ... */ }
 ```
 
+### Kredit účtu
+
+```php
+$credit = $gateway->getCredit();   // společný pro Sklik i Seznam Nákupy
+echo $credit->credit;              // zůstatek bez DPH (Kč)
+echo $credit->creditWithVat;       // zůstatek s DPH
+```
+
 ### Náklady za období
 
 Zkratka, která vytvoří agregovaný report, počká na jeho vygenerování (polling, výchozí

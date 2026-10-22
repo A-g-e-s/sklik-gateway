@@ -13,6 +13,7 @@ use Ages\SklikGateway\Nakupy\Request\ReportParams;
 use Ages\SklikGateway\Report\ReportApi;
 use Ages\SklikGateway\Report\Response\ReportRow;
 use Ages\SklikGateway\Report\Response\ReportSums;
+use Ages\SklikGateway\User\Response\Credit;
 use DateTimeImmutable;
 use DateTimeInterface;
 use GuzzleHttp\Client;
@@ -57,6 +58,14 @@ class SklikGateway
     public function reports(): ReportApi
     {
         return $this->reports ??= new ReportApi($this->client);
+    }
+
+    /**
+     * Current account credit (GET /user/me/credit), shared by Sklik and Seznam Nákupy.
+     */
+    public function getCredit(): Credit
+    {
+        return Credit::fromArray($this->client->get('user/me/credit'));
     }
 
     /**
