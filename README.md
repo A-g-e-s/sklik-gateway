@@ -56,7 +56,27 @@ echo $credit->credit;              // zůstatek bez DPH (Kč)
 echo $credit->creditWithVat;       // zůstatek s DPH
 ```
 
-### Náklady za období
+### Náklady po kampaních (Sklik i Zboží.cz)
+
+Statistiky kampaní (`GET /sklik/campaigns/`) se vrací hned, bez reportu, a pokrývají všechny typy
+kampaní — vyhledávání (`fulltext`), obsahovou síť (`context`), kombinované i Zboží.cz (`zbozi`).
+Částky API posílá v haléřích, `CampaignStats` je převádí na Kč. Kampaně bez statistik se vynechávají.
+
+```php
+use Ages\SklikGateway\Enum\CampaignType;
+
+foreach ($gateway->getCampaignCosts($from, $to) as $campaign) {   // list<CampaignStats>
+    echo $campaign->name, ' [', $campaign->typeRaw, ']: ', $campaign->totalMoney, ' Kč, ', $campaign->clicks, ' prokliků', PHP_EOL;
+}
+
+// jen Sklik bez Zboží.cz
+$sklik = array_filter($gateway->getCampaignCosts($from, $to), fn ($c) => $c->type !== CampaignType::Zbozi);
+
+// rozpad po měsících / týdnech… (max. 60 období), jen vybrané typy
+$gateway->campaigns()->getCampaignStats($from, $to, ReportStatisticsGranularity::Monthly, [CampaignType::Fulltext]);
+```
+
+### Náklady za období (report Nákupů)
 
 Zkratka, která vytvoří agregovaný report, počká na jeho vygenerování (polling, výchozí
 timeout 60 s) a vrátí souhrn `ReportSums`. Blokující volání — vhodné pro cron/CLI.

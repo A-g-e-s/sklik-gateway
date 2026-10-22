@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ages\SklikGateway;
 
+use Ages\SklikGateway\Campaign\CampaignApi;
+use Ages\SklikGateway\Campaign\Response\CampaignStats;
 use Ages\SklikGateway\Config\SklikConfig;
 use Ages\SklikGateway\Enum\ReportStatisticsGranularity;
 use Ages\SklikGateway\Exception\SklikException;
@@ -41,6 +43,8 @@ class SklikGateway
 
     private ?ReportApi $reports = null;
 
+    private ?CampaignApi $campaigns = null;
+
     public function __construct(
         SklikConfig $config,
         ?CacheInterface $cache = null,
@@ -58,6 +62,23 @@ class SklikGateway
     public function reports(): ReportApi
     {
         return $this->reports ??= new ReportApi($this->client);
+    }
+
+    public function campaigns(): CampaignApi
+    {
+        return $this->campaigns ??= new CampaignApi($this->client);
+    }
+
+    /**
+     * Costs per campaign for a period (both days inclusive), without campaigns with no
+     * statistics. Covers Sklik search/content campaigns as well as the Zboží.cz
+     * campaign – split them by {@see CampaignStats::$type}. Returned immediately.
+     *
+     * @return list<CampaignStats>
+     */
+    public function getCampaignCosts(DateTimeInterface $from, DateTimeInterface $to): array
+    {
+        return $this->campaigns()->getCampaignStats($from, $to);
     }
 
     /**
