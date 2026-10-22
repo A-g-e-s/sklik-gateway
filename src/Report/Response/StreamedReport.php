@@ -7,8 +7,8 @@ namespace Ages\SklikGateway\Report\Response;
 /**
  * Contents of a generated statistics report in JSON form (StreamedReportResponse).
  *
- * Individual stat rows depend on the requested split/granularity, so they are
- * exposed as raw associative arrays.
+ * Individual stat rows are kept as raw associative arrays in `stats`; use
+ * {@see rows()} for typed access.
  */
 readonly class StreamedReport
 {
@@ -19,6 +19,16 @@ readonly class StreamedReport
         public array $stats,
         public ?ReportSums $sums,
     ) {
+    }
+
+    /**
+     * Stat rows as typed objects.
+     *
+     * @return list<ReportRow>
+     */
+    public function rows(): array
+    {
+        return array_map(static fn (array $row): ReportRow => ReportRow::fromArray($row), $this->stats);
     }
 
     /**

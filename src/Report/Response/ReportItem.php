@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Ages\SklikGateway\Report\Response;
 
+use Ages\SklikGateway\Enum\ReportStatus;
+
 /**
  * A single report listing entry (GET /sklik/reports/).
  */
@@ -23,6 +25,14 @@ readonly class ReportItem
         public array $formats,
         public array $raw = [],
     ) {
+    }
+
+    /**
+     * Typed status; null for a value not known to this client.
+     */
+    public function reportStatus(): ?ReportStatus
+    {
+        return ReportStatus::tryFrom($this->status);
     }
 
     /**

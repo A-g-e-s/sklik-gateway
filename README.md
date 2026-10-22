@@ -48,6 +48,33 @@ echo $report->sums?->totalMoney;   // celková útrata
 foreach ($report->stats as $row) { /* ... */ }
 ```
 
+### Náklady za období
+
+Zkratka, která vytvoří agregovaný report, počká na jeho vygenerování (polling, výchozí
+timeout 60 s) a vrátí souhrn `ReportSums`. Blokující volání — vhodné pro cron/CLI.
+Když report neobsahuje souhrn, vyhodí `SklikException` (nevrací tiché nuly).
+
+> API respektuje jen denní granularitu (týdenní a hrubší vrací jeden řádek bez data),
+> proto `getCostsBreakdown()` stahuje denní data a seskupuje je v klientovi. Řádek nese
+> datum začátku období, poměry (CPC, CTR, PNO…) se přepočítají ze součtů.
+
+```php
+$sums = $gateway->getCosts(new DateTimeImmutable('2026-09-01'), new DateTimeImmutable('2026-09-30 23:59:59'));
+echo $sums->totalMoney;    // útrata
+echo $sums->impressions;   // zobrazení
+echo $sums->clicks;        // prokliky
+echo $sums->avgCpc;        // průměrné CPC
+
+// rozpad po dnech / týdnech / měsících / kvartálech / letech → list<ReportRow>
+$months = $gateway->getCostsBreakdown($from, $to, ReportStatisticsGranularity::Monthly);
+foreach ($months as $row) {
+    echo $row->date?->format('Y-m'), ': ', $row->totalMoney, ' Kč, ', $row->clicks, ' prokliků', PHP_EOL;
+}
+
+// samotné čekání na libovolný report
+$report = $gateway->reports()->waitForReport($created->id, timeout: 120);
+```
+
 ### Seznam Nákupy — shop items
 
 ```php

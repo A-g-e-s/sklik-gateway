@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Ages\SklikGateway\Report;
 
 use Ages\SklikGateway\Enum\ReportFileFormat;
+use Ages\SklikGateway\Enum\ReportStatus;
+use Ages\SklikGateway\Exception\SklikException;
 use Ages\SklikGateway\Http\SklikClient;
 use Ages\SklikGateway\Report\Response\ReportItem;
 use Ages\SklikGateway\Report\Response\StreamedReport;
@@ -51,6 +53,48 @@ class ReportApi
         }
 
         return $out;
+    }
+
+    /**
+     * Fetch a single report listing entry, or null when it does not exist.
+     */
+    public function getReportItem(int $reportId): ?ReportItem
+    {
+        return $this->listReports(ids: [$reportId])[0] ?? null;
+    }
+
+    /**
+     * Poll the report until it is generated and download its contents.
+     *
+     * @param int $timeout      Max seconds to wait for the report to finish.
+     * @param int $pollInterval Seconds between status checks.
+     * @throws SklikException When the report fails, disappears or does not finish in time.
+     */
+    public function waitForReport(
+        int $reportId,
+        int $timeout = 60,
+        int $pollInterval = 2,
+        ReportFileFormat $format = ReportFileFormat::Json,
+    ): StreamedReport {
+        $deadline = time() + $timeout;
+
+        while (true) {
+            $status = $this->getReportItem($reportId)?->reportStatus();
+            if ($status === null) {
+                throw new SklikException("Sklik report {$reportId} not found.");
+            }
+            if ($status === ReportStatus::Finished) {
+                return $this->getReport($reportId, $format);
+            }
+            if (!$status->isPending()) {
+                throw new SklikException("Sklik report {$reportId} failed with status '{$status->value}'.");
+            }
+            if (time() >= $deadline) {
+                throw new SklikException("Sklik report {$reportId} not finished within {$timeout} s.");
+            }
+
+            sleep(max(1, $pollInterval));
+        }
     }
 
     /**
